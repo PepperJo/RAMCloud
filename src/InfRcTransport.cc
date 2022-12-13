@@ -172,6 +172,7 @@ InfRcTransport::InfRcTransport(Context* context, const ServiceLocator *sl,
     , clientRxCq(NULL)
     , commonTxCq(NULL)
     , ibPhysicalPort(1)
+    , gid { }
     , lid(0)
     , serverSetupSocket(-1)
     , clientSetupSocket(-1)
@@ -208,6 +209,9 @@ InfRcTransport::InfRcTransport(Context* context, const ServiceLocator *sl,
             ibPhysicalPort = sl->getOption<int>("devport");
         } catch (ServiceLocator::NoSuchKeyException& e) {}
     }
+
+//    printf("asq: hardcode device name \n");
+    ibDeviceName="rocep17s0f1";
 
     infiniband = realInfiniband.construct(ibDeviceName);
 
@@ -295,6 +299,9 @@ InfRcTransport::InfRcTransport(Context* context, const ServiceLocator *sl,
 
     lid = infiniband->getLid(ibPhysicalPort);
     LOG(NOTICE, "Local Infiniband lid is %u", lid);
+
+    gid = infiniband->getGid(static_cast<uint8_t>(ibPhysicalPort));
+    LOG(NOTICE, "GID: Interface ID = %lx, subnet prefix = %lx", gid.global.interface_id, gid.global.subnet_prefix);
 
     // create two shared receive queues. all client queue pairs use one and all
     // server queue pairs use the other. we post receive buffer work requests
@@ -756,7 +763,8 @@ InfRcTransport::clientTrySetupQueuePair(IpAddress& address)
             inet_ntoa(sin->sin_addr), clientPort, nonce);
 
     for (uint32_t i = 0; i < QP_EXCHANGE_MAX_TIMEOUTS; i++) {
-        QueuePairTuple outgoingQpt(downCast<uint16_t>(lid),
+        QueuePairTuple outgoingQpt(gid,
+                                   downCast<uint16_t>(lid),
                                    qp->getLocalQpNumber(),
                                    qp->getInitialPsn(), nonce,
                                    name);
@@ -857,7 +865,8 @@ InfRcTransport::ServerConnectHandler::handleFileEvent(int events)
 
     // now send the client back our queue pair information so they can
     // complete the initialisation.
-    QueuePairTuple outgoingQpt(downCast<uint16_t>(transport->lid),
+    QueuePairTuple outgoingQpt(transport->gid,
+                               downCast<uint16_t>(transport->lid),
                                qp->getLocalQpNumber(),
                                qp->getInitialPsn(), incomingQpt.getNonce());
     len = sendto(transport->serverSetupSocket, &outgoingQpt,
@@ -1169,10 +1178,10 @@ InfRcTransport::sendZeroCopy(uint64_t nonce, Buffer* message, QueuePair* qp,
                 copyTicks(&metrics->transport.transmit.copyTicks);
             memcpy(unaddedEnd, it.getData(), it.getLength());
             unaddedEnd += it.getLength();
-            if (it.getLength() > LARGE_COPIED_BYTES) {
+            /*if (it.getLength() > LARGE_COPIED_BYTES) {
                 LOG(WARNING, "zero-copy TX not applicable, copied %u bytes",
                         it.getLength());
-            }
+            }*/
         }
         it.next();
         ++chunksUsed;
@@ -1213,8 +1222,10 @@ InfRcTransport::sendZeroCopy(uint64_t nonce, Buffer* message, QueuePair* qp,
                 "server sending response, nonce %u, length %u" :
                 "client sending request, nonce %u, length %u";
         timeTrace(fmt, nonce, message->size());
-        if (ibv_post_send(qp->qp, &txWorkRequest, &badTxWorkRequest)) {
-            throw TransportException(HERE, "ibv_post_send failed");
+        int ret = ibv_post_send(qp->qp, &txWorkRequest, &badTxWorkRequest);
+        if (ret) {
+            printf("XXX: %d, %d\n", ret, sgesUsed);
+            throw TransportException(HERE, "ibv_post_send failed", errno);
         }
         pendingOutputBytes += bd->messageBytes;
     } else {

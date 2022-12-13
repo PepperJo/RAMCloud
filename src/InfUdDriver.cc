@@ -160,7 +160,7 @@ InfUdDriver::InfUdDriver(Context* context, const ServiceLocator *sl,
         throw DriverException(HERE, errno);
     }
 
-    qp = infiniband->createQueuePair(localMac ? IBV_QPT_RAW_ETH
+    qp = infiniband->createQueuePair(localMac ? IBV_QPT_RAW_PACKET
                                               : IBV_QPT_UD,
                                      ibPhysicalPort, NULL,
                                      txcq, rxcq, MAX_TX_QUEUE_DEPTH,

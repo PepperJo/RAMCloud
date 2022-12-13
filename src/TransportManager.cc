@@ -397,6 +397,7 @@ TransportManager::openSessionInternal(const string& serviceLocator)
                 try {
                     Dispatch::Lock lock(context->dispatch);
                     transports[i] = factory->createTransport(context, NULL);
+//                    transports[i] = factory->createTransport(context, &locator);
                     for (uint32_t j = 0; j < registeredBases.size(); j++) {
                         transports[i]->registerMemory(registeredBases[j],
                                                       registeredSizes[j]);

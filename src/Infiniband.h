@@ -44,18 +44,22 @@ class Infiniband {
     // back and forth.
     class QueuePairTuple {
       public:
-        QueuePairTuple() : qpn(0), psn(0), lid(0), nonce(0)
+        QueuePairTuple() : gid { }, qpn(0), psn(0), lid(0), nonce(0)
         {
+          /*
             static_assert(sizeof(QueuePairTuple) == 68,
                               "QueuePairTuple has unexpected size");
+          */
         }
-        QueuePairTuple(uint16_t lid, uint32_t qpn, uint32_t psn,
+        QueuePairTuple(union ibv_gid gid, uint16_t lid, uint32_t qpn, uint32_t psn,
                        uint64_t nonce, const char* peerName = "?unknown?")
-            : qpn(qpn), psn(psn), lid(lid), nonce(nonce)
+            : gid(gid), qpn(qpn), psn(psn), lid(lid), nonce(nonce)
         {
             snprintf(this->peerName, sizeof(this->peerName), "%s",
                 peerName);
+            printf("asq: peername = %s\n", peerName);
         }
+        union ibv_gid getGid() const    { return gid; }
         uint16_t    getLid() const      { return lid; }
         uint32_t    getQpn() const      { return qpn; }
         uint32_t    getPsn() const      { return psn; }
@@ -63,6 +67,7 @@ class Infiniband {
         const char* getPeerName() const { return peerName; }
 
       private:
+        union ibv_gid gid;       // The GID (necessary in RoCE)
         uint32_t qpn;            // queue pair number
         uint32_t psn;            // initial packet sequence number
         uint16_t lid;            // infiniband address: "local id"
@@ -115,6 +120,7 @@ class Infiniband {
             // through the call to ibv_open_device.
             DeviceList deviceList;
 
+            printf("asq: lookup device %s\n", name);
             auto dev = deviceList.lookup(name);
             if (dev == NULL) {
                 RAMCLOUD_LOG(WARNING, "failed to find infiniband device: %s",
@@ -132,6 +138,11 @@ class Infiniband {
                     format("failed to open infiniband device: %s",
                            name == NULL ? "any" : name), errno);
             }
+            printf("asq: Device %s is open\n.", name);
+            union ibv_gid gid;
+            ibv_query_gid(ctxt, 1, 0, &gid);
+            printf("asq: GID: Interface ID = %lx, subnet prefix = %lx\n", gid.global.interface_id, gid.global.subnet_prefix);
+
         }
 
         ~Device() {
@@ -452,6 +463,9 @@ class Infiniband {
                     uint32_t maxSendWr,
                     uint32_t maxRecvWr,
                     uint32_t QKey = 0);
+
+    union ibv_gid
+    getGid(uint8_t port);
 
     int
     getLid(int port);

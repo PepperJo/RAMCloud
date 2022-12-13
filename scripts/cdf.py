@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 """
 Stand-alone script which reads a CSV file of data measurements (specified on

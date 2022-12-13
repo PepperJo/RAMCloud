@@ -54,8 +54,8 @@ public class TestClient {
 
         // Run whatever here
         // enumerationTest();
-        // basicSpeedTest();
-        multiReadTest();
+        basicSpeedTest(argv[1]);
+        //multiReadTest();
         // multiWriteTest();
         // multiRemoveTest();
         // test();
@@ -141,13 +141,16 @@ public class TestClient {
         System.out.printf("Average create object time: %.3f\n", elapsed / 1000.0 / numTimes);
     }
 
-    private void basicSpeedTest() {
-        int numTimes = 100000;
+    private void basicSpeedTest(String size) {
+        int numTimes = 1000;
         long before, elapsed;
+
+	int valueSize = Integer.parseInt(size);
+	System.out.println("BasicSpeedTest: valueSize = " + valueSize);
 
         // Read tests
         byte[] key = new byte[30];
-        byte[] value = new byte[100];
+        byte[] value = new byte[valueSize];
         ramcloud.write(tableId, key, value, null);
         double[] times = new double[numTimes];
         System.out.println("time");

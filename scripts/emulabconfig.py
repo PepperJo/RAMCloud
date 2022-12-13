@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 """
 This module defines an Emulab specific cluster hooks and exposes configuration information
 such as location of RAMCloud binaries and list of hosts. EMULAB_HOST environment must be 

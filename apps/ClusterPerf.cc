@@ -2395,7 +2395,7 @@ void fillTable(uint64_t tableId, int numObjects, uint16_t keyLength,
     // a single multi-write operation.
     Buffer buffer;
     char keys[batchSize*keyLength];
-    char value[valueLength];
+    char *value = new char[valueLength];
     memset(value, 'x', valueLength);
     MultiWriteObject* objects[batchSize];
 
@@ -2422,6 +2422,7 @@ void fillTable(uint64_t tableId, int numObjects, uint16_t keyLength,
     RAMCLOUD_LOG(NOTICE, "write rate for %d-byte objects: %.1f kobjects/sec,"
             " %.1f MB/sec",
             valueLength, rate/1e03, rate*(keyLength+valueLength)/1e06);
+    delete[] value;
 }
 
 //----------------------------------------------------------------------
@@ -2436,11 +2437,13 @@ basic()
         return;
     Buffer input, output;
 #define NUM_SIZES 5
-    int sizes[NUM_SIZES] = {100, 1000, 10000, 100000, 1000000};
+    int sizes[NUM_SIZES] = {4, 1024, 4096, 16384, 65536};
     TimeDist readDists[NUM_SIZES], writeDists[NUM_SIZES];
-    const char* ids[NUM_SIZES] = {"100", "1K", "10K", "100K", "1M"};
+    const char* ids[NUM_SIZES] = {"4", "1K", "4K", "16K", "64K"};
     const uint16_t keyLength = 30;
     char name[50], description[50];
+
+    printf("BASIC\n");
 
     // Each iteration through the following loop measures random reads and
     // writes of a particular object size. Start with the largest object
@@ -6727,10 +6730,11 @@ readThroughputMaster(int numObjects, int size, uint16_t keyLength)
 void
 readThroughput()
 {
-    const uint16_t keyLength = 30;
+    const uint16_t keyLength = 64;
     int size = objectSize;
     if (size < 0)
         size = 100;
+    size = 64;
     const int numObjects = 40000000/size;
     if (clientIndex == 0) {
         // This is the master client.
@@ -7199,6 +7203,50 @@ writeThroughput()
     }
 }
 
+void readThroughputX() {
+    const uint16_t keyLength = 64;
+
+    printf( "# RAMCloud read throughput\n"
+            "#  keyLength  = %d\n"
+            "#  objectSize = %d\n"
+            "#  numObjects = %d\n",
+            keyLength, objectSize, numObjects);
+
+    uint64_t startTime = Cycles::rdtsc();
+    for (int objectsWritten = 0; objectsWritten != numObjects; objectsWritten++) {
+        char key[keyLength];
+        Buffer value;
+        makeKey(downCast<int>(generateRandom() % numObjects),
+                keyLength, key);
+        cluster->read(dataTable, key, keyLength, &value);
+    }
+    uint64_t endTime = Cycles::rdtsc();
+    printf("Runtime[us] = %lu\n", Cycles::toMicroseconds(endTime - startTime));
+}
+
+void writeThroughputX() {
+    const uint16_t keyLength = 64;
+
+    printf( "# RAMCloud write throughput\n"
+            "#  keyLength  = %d\n"
+            "#  objectSize = %d\n"
+            "#  numObjects = %d\n",
+            keyLength, objectSize, numObjects);
+
+    uint64_t startTime = Cycles::rdtsc();
+    for (int objectsWritten = 0; objectsWritten != numObjects; objectsWritten++) {
+        char key[keyLength];
+        char value[objectSize];
+        makeKey(downCast<int>(generateRandom() % numObjects),
+                keyLength, key);
+        Util::genRandomString(value, objectSize);
+        cluster->write(dataTable, key, keyLength, value, objectSize,
+                NULL, NULL, asyncReplication);
+    }
+    uint64_t endTime = Cycles::rdtsc();
+    printf("Runtime[us] = %lu\n", Cycles::toMicroseconds(endTime - startTime));
+}
+
 // This benchmark measures total throughput of a single server (in operations
 // per second) under a specified workload.
 void
@@ -7337,6 +7385,8 @@ TestInfo tests[] = {
     {"writeInterference", writeInterference},
     {"writeThroughput", writeThroughput},
     {"workloadThroughput", workloadThroughput},
+    {"writeThroughputX", writeThroughputX},
+    {"readThroughputX", readThroughputX},
 };
 
 int

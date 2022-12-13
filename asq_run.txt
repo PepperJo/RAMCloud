@@ -1,0 +1,40 @@
+Mit Zookeeper:
+
+Coordinator
+obj.master/coordinator -C infrc:host=10.100.0.9,port=11100,dev=mlx5_0 -x zk:flex09:2181
+
+Storage-Server
+obj.master/server -L infrc:host=10.100.0.9,port=1101,dev=mlx5_0 -x zk:flex09:2181 --totalMasterMemory 16000  --segmentFrames 10000 -r 0
+
+ClusterPerf
+./obj.master/apps/ClusterPerf -L infrc:host=10.100.0.9,port=1101,dev=mlx5_0 -C infrc:host=10.100.0.9,port=11100,dev=mlx5_0 --testName basic
+
+
+
+Ohne Zookeeper:
+
+Coordinator
+obj.master/coordinator -C infrc:host=10.100.0.9,port=11100,dev=mlx5_0
+
+Storage-Server
+obj.master/server -L infrc:host=10.100.0.9,port=1101,dev=mlx5_0 -C infrc:host=10.100.0.9,port=11100,dev=mlx5_0 --totalMasterMemory 16000  --segmentFrames 10000 -r 0
+
+ClusterPerf
+./obj.master/apps/ClusterPerf -L infrc:host=10.100.0.9,port=1101,dev=mlx5_0 -C infrc:host=10.100.0.9,port=11100,dev=mlx5_0 --testName basic
+
+
+
+readThroughput:
+numClients = (master + nr slaves)
+clientIndex == 0 => master
+
+Start clients before master.
+After experiment, start master again (seems a bug?), otherwise next experiment does not work.
+
+Start one client:
+./obj.master/apps/ClusterPerf -L infrc:host=10.100.0.9,port=1101,dev=mlx5_0 -C infrc:host=10.100.0.9,port=11100,dev=mlx5_0 --testName readThroughput  --clientIndex=1
+
+Start one master:
+./obj.master/apps/ClusterPerf -L infrc:host=10.100.0.9,port=1101,dev=mlx5_0 -C infrc:host=10.100.0.9,port=11100,dev=mlx5_0 --testName readThroughput --numClients=2 --clientIndex=0
+
+

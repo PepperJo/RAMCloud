@@ -19,6 +19,8 @@
 #include "ShortMacros.h"
 #include "Transport.h"
 
+#include <errno.h>
+
 namespace RAMCloud {
 
 
@@ -114,6 +116,22 @@ Infiniband::wcStatusToString(int status)
     if (status < IBV_WC_SUCCESS || status > IBV_WC_GENERAL_ERR)
         return "<status out of range!>";
     return lookup[status];
+}
+
+
+/**
+ * Obtain the infiniband global ID index 0
+ */
+union ibv_gid
+Infiniband::getGid(uint8_t port)
+{
+    union ibv_gid gid;
+    int ret = ibv_query_gid(device.ctxt, port, 0, &gid);
+    if (ret) {
+        RAMCLOUD_LOG(ERROR, "ibv_query_gid failed on port %u\n", port);
+        throw TransportException(HERE, ret);
+    }
+    return gid;
 }
 
 /**
@@ -520,7 +538,7 @@ Infiniband::QueuePair::QueuePair(Infiniband& infiniband, ibv_qp_type type,
       peerLid(0)
 {
     snprintf(peerName, sizeof(peerName), "?unknown?");
-    if (type != IBV_QPT_RC && type != IBV_QPT_UD && type != IBV_QPT_RAW_ETH)
+    if (type != IBV_QPT_RC && type != IBV_QPT_UD && type != IBV_QPT_RAW_PACKET)
         throw TransportException(HERE, "invalid queue pair type");
 
     ibv_qp_init_attr qpia;
@@ -530,8 +548,8 @@ Infiniband::QueuePair::QueuePair(Infiniband& infiniband, ibv_qp_type type,
     qpia.srq = srq;                    // use the same shared receive queue
     qpia.cap.max_send_wr  = maxSendWr; // max outstanding send requests
     qpia.cap.max_recv_wr  = maxRecvWr; // max outstanding recv requests
-    qpia.cap.max_send_sge = 1;         // max send scatter-gather elements
-    qpia.cap.max_recv_sge = 1;         // max recv scatter-gather elements
+    qpia.cap.max_send_sge = 24;         // max send scatter-gather elements
+    qpia.cap.max_recv_sge = 24;         // max recv scatter-gather elements
     qpia.cap.max_inline_data =         // max bytes of immediate data on send q
         MAX_INLINE_DATA;
     qpia.qp_type = type;               // RC, UC, UD, or XRC
@@ -564,7 +582,7 @@ Infiniband::QueuePair::QueuePair(Infiniband& infiniband, ibv_qp_type type,
         mask |= IBV_QP_QKEY;
         mask |= IBV_QP_PKEY_INDEX;
         break;
-    case IBV_QPT_RAW_ETH:
+    case IBV_QPT_RAW_PACKET:
         break;
     default:
         assert(0);
@@ -631,6 +649,16 @@ Infiniband::QueuePair::plumb(QueuePairTuple *qpt)
     qpa.ah_attr.sl = 0;
     qpa.ah_attr.src_path_bits = 0;
     qpa.ah_attr.port_num = downCast<uint8_t>(ibPhysicalPort);
+    qpa.ah_attr.grh.sgid_index = 0;
+//    qpa.ah_attr.grh.dgid.global.subnet_prefix = 0x80fe;
+//    qpa.ah_attr.grh.dgid.global.interface_id = 0xffd97bfeff9a0dee;
+    qpa.ah_attr.grh.dgid = qpt->getGid();
+    qpa.ah_attr.is_global = 1;
+    qpa.ah_attr.grh.hop_limit = 5;
+
+    printf("asq: LID = %hu, port = %hhu, GID: Interface ID = %lx, subnet prefix = %lx\n",
+        qpa.ah_attr.dlid, qpa.ah_attr.port_num,
+        qpa.ah_attr.grh.dgid.global.interface_id, qpa.ah_attr.grh.dgid.global.subnet_prefix);
 
     r = ibv_modify_qp(qp, &qpa, IBV_QP_STATE |
                                 IBV_QP_AV |
@@ -641,6 +669,8 @@ Infiniband::QueuePair::plumb(QueuePairTuple *qpt)
                                 IBV_QP_MAX_DEST_RD_ATOMIC);
     if (r) {
         LOG(ERROR, "failed to transition to RTR state");
+        int e = errno;
+        printf("Error %d: %s\n", e, strerror(e));
         throw TransportException(HERE, r);
     }
 
@@ -683,7 +713,7 @@ void
 Infiniband::QueuePair::activate(const Tub<MacAddress>& localMac)
 {
     ibv_qp_attr qpa;
-    if (type != IBV_QPT_UD && type != IBV_QPT_RAW_ETH)
+    if (type != IBV_QPT_UD && type != IBV_QPT_RAW_PACKET)
         throw TransportException(HERE, "activate() called on wrong qp type");
 
     if (getState() != IBV_QPS_INIT) {
@@ -704,7 +734,7 @@ Infiniband::QueuePair::activate(const Tub<MacAddress>& localMac)
     // now move to RTS state
     qpa.qp_state = IBV_QPS_RTS;
     int flags = IBV_QP_STATE;
-    if (type != IBV_QPT_RAW_ETH) {
+    if (type != IBV_QPT_RAW_PACKET) {
         qpa.sq_psn = initialPsn;
         flags |= IBV_QP_SQ_PSN;
     }
@@ -714,7 +744,7 @@ Infiniband::QueuePair::activate(const Tub<MacAddress>& localMac)
         throw TransportException(HERE, ret);
     }
 
-    if (type == IBV_QPT_RAW_ETH) {
+    if (type == IBV_QPT_RAW_PACKET) {
         ibv_gid mgid;
         memset(&mgid, 0, sizeof(mgid));
         memcpy(&mgid.raw[10], localMac->address, 6);
