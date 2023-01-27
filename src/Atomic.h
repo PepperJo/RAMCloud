@@ -72,14 +72,7 @@ class Atomic {
      */
     void add(int64_t increment)
     {
-        if (sizeof(value) == 8) {
-            __asm__ __volatile__("lock; addq %1,%0" : "=m" (value) :
-                    "r" (increment*AtomicStride<ValueType>::unitSize));
-        } else {
-            __asm__ __volatile__("lock; addl %1,%0" : "=m" (value) :
-                    "r" (static_cast<int>(increment)*
-                         AtomicStride<ValueType>::unitSize));
-        }
+	__atomic_fetch_add(&value, increment, __ATOMIC_SEQ_CST);
     }
 
     /**
@@ -95,14 +88,10 @@ class Atomic {
      */
     ValueType compareExchange(ValueType test, ValueType newValue)
     {
-        if (sizeof(value) == 8) {
-            __asm__ __volatile__("lock; cmpxchgq %0,%1" : "=r" (newValue),
-                    "=m" (value), "=a" (test) : "0" (newValue), "2" (test));
-        } else {
-            __asm__ __volatile__("lock; cmpxchgl %0,%1" : "=r" (newValue),
-                    "=m" (value), "=a" (test) : "0" (newValue), "2" (test));
-        }
-        return test;
+	if (__atomic_compare_exchange(&value, &test, &newValue, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)) {
+	   return newValue;
+	}
+	return test;
     }
 
     /**
@@ -115,13 +104,7 @@ class Atomic {
      */
     ValueType exchange(ValueType newValue)
     {
-        if (sizeof(value) == 8) {
-            __asm__ __volatile__("xchgq %0,%1" : "=r" (newValue), "=m" (value) :
-                    "0" (newValue));
-        } else {
-            __asm__ __volatile__("xchgl %0,%1" : "=r" (newValue), "=m" (value) :
-                    "0" (newValue));
-        }
+	__atomic_exchange(&value, &newValue, &newValue, __ATOMIC_SEQ_CST);
         return newValue;
     }
 
@@ -139,23 +122,7 @@ class Atomic {
      */
     ValueType inc(uint64_t increment = 1)
     {
-        ValueType prev;
-        if (sizeof(value) == 8) {
-            __asm__ __volatile__("lock; xaddq %%rax, %2;"
-                                 :"=a" (prev)
-                                 :"a" (increment*
-                                       AtomicStride<ValueType>::unitSize)
-                                  , "m" (value)
-                                 :"memory");
-        } else {
-            __asm__ __volatile__("lock; xaddl %%eax, %2;"
-                                 :"=a" (prev)
-                                 :"a" (static_cast<int>(increment)*
-                                       AtomicStride<ValueType>::unitSize)
-                                  , "m" (value)
-                                 :"memory");
-        }
-        return prev;
+	return __atomic_fetch_add(&value, increment * AtomicStride<ValueType>::unitSize, __ATOMIC_SEQ_CST);
     }
 
     /**

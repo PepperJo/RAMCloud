@@ -211,7 +211,7 @@ InfRcTransport::InfRcTransport(Context* context, const ServiceLocator *sl,
     }
 
 //    printf("asq: hardcode device name \n");
-    ibDeviceName="rocep17s0f1";
+    ibDeviceName="mlx5_3";
 
     infiniband = realInfiniband.construct(ibDeviceName);
 

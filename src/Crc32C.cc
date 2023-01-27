@@ -21,6 +21,7 @@
 
 namespace RAMCloud {
 
+#if __SSE4_2__
 #define CPUID(level, a, b, c, d) \
   __asm__ ("cpuid" : "=a" (a), "=b" (b), "=c" (c), "=d" (d) : "0" (level))
 
@@ -38,7 +39,6 @@ haveSse42() {
 }
 } // anonymous namespace
 
-#if __SSE4_2__
 bool Crc32C::haveHardware = haveSse42();
 #else
 bool Crc32C::haveHardware = false;

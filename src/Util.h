@@ -66,9 +66,10 @@ readPmc(int ecx)
     if (mockPmcValue)
         return mockPmcValue;
 #endif
-    unsigned int a, d;
+    /*unsigned int a, d;
     __asm __volatile("rdpmc" : "=a"(a), "=d"(d) : "c"(ecx));
-    return ((uint64_t)a) | (((uint64_t)d) << 32);
+    return ((uint64_t)a) | (((uint64_t)d) << 32);*/
+    return 0;
 }
 
 /**
@@ -135,10 +136,7 @@ void setCpuAffinity(cpu_set_t cpuset) {
  */
 static FORCE_INLINE
 void serialize() {
-    uint32_t eax, ebx, ecx, edx;
-    __asm volatile("cpuid"
-        : "=a" (eax), "=b" (ebx), "=c" (ecx), "=d" (edx)
-        : "a" (1U));
+    __sync_synchronize ();
 }
 
 /**

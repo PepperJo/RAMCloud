@@ -36,7 +36,7 @@ class Fence {
      */
     static void inline lfence()
     {
-        __asm__ __volatile__("lfence" ::: "memory");
+	__asm __volatile__("dsb ld" ::: "memory");
     }
 
     /**
@@ -47,7 +47,7 @@ class Fence {
      */
     static void inline sfence()
     {
-        __asm__ __volatile__("sfence" ::: "memory");
+        __asm __volatile__("dsb st" ::: "memory");
     }
 
     /**

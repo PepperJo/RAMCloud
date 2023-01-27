@@ -107,10 +107,7 @@ class BitOps {
         if (n == 0)
             return 0;
 
-        uint64_t index = 0;
-        uint64_t input = n;
-        __asm__("bsrq %1,%0" : "=r"(index) : "r"(input) : "cc");
-        return downCast<int>(index + 1);
+	return downCast<int>(__builtin_clzl(n) + 1);
     }
 
     /**
@@ -182,10 +179,7 @@ class BitOps {
     static int
     countBitsSet_x86(T n)
     {
-        int64_t result = 0;
-        uint64_t input = n;
-        __asm__("popcntq %0,%1" : "=r"(result) : "r"(input));
-        return downCast<int>(result);
+	return __builtin_popcountl(n);
     }
 
     /**

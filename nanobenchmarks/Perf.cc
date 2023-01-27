@@ -1159,10 +1159,10 @@ double div32()
     uint32_t quotient;
     uint32_t remainder;
     for (int i = 0; i < count; i++) {
-        __asm__ __volatile__("div %4" :
+        /*__asm__ __volatile__("div %4" :
                              "=a"(quotient), "=d"(remainder) :
                              "a"(numeratorLo), "d"(numeratorHi), "r"(divisor) :
-                             "cc");
+                             "cc");*/
     }
     uint64_t stop = Cycles::rdtsc();
     return Cycles::toSeconds(stop - start)/count;
@@ -1184,10 +1184,10 @@ double div64()
     uint64_t quotient;
     uint64_t remainder;
     for (int i = 0; i < count; i++) {
-        __asm__ __volatile__("divq %4" :
+        /*__asm__ __volatile__("divq %4" :
                              "=a"(quotient), "=d"(remainder) :
                              "a"(numeratorLo), "d"(numeratorHi), "r"(divisor) :
-                             "cc");
+                             "cc");*/
     }
     uint64_t stop = Cycles::rdtsc();
     return Cycles::toSeconds(stop - start)/count;

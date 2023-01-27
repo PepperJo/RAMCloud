@@ -864,7 +864,7 @@ criticalErrorHandler(int signal, siginfo_t* info, void* ucontext)
 {
     ucontext_t* uc = static_cast<ucontext_t*>(ucontext);
     void* callerAddress =
-        reinterpret_cast<void*>(uc->uc_mcontext.gregs[REG_RIP]);
+        reinterpret_cast<void*>(uc->uc_mcontext.pc);
 
     LOG(ERROR, "Signal %d (%s) at address %p from %p",
         signal, strsignal(signal), info->si_addr,
