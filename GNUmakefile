@@ -12,7 +12,6 @@ include $(wildcard private/MakefragPrivateTop)
 DEBUG ?= yes
 DEBUG_OPT ?= no
 YIELD ?= no
-SSE ?= sse4.2
 ARCH ?= native
 COMPILER ?= gnu
 CCACHE ?= no
@@ -74,7 +73,7 @@ BASECFLAGS += -D_GLIBCXX_USE_CXX11_ABI=0
 endif
 
 COMFLAGS := $(BASECFLAGS) $(OPTFLAG) -fno-strict-aliasing \
-	        -MD -m$(SSE) \
+	        -MD \
 	        $(DEBUGFLAGS)
 ifeq ($(COMPILER),gnu)
 COMFLAGS += -march=$(ARCH)
