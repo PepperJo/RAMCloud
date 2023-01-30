@@ -865,6 +865,13 @@ rc_multiWrite(struct rc_client* client,
     }
 }
 
+/* AYNC */
+void
+rc_poll(struct rc_client* client)
+{
+    client->client->poll();
+}
+
 Status
 rc_testing_kill(struct rc_client* client, uint64_t tableId,
                 const void* key, uint16_t keyLength)

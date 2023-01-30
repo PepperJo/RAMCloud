@@ -128,6 +128,9 @@ void      rc_multiWrite(struct rc_client* client,
 void      rc_multiRemove(struct rc_client* client,
                               void **requests, uint32_t numRequests);
 
+/* ASYNC */
+void      rc_poll(struct rc_client* client);
+
 Status    rc_testing_kill(struct rc_client* client, uint64_t tableId,
                                     const void* key, uint16_t keyLength);
 Status    rc_testing_get_server_id(struct rc_client* client,
